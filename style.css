@@ -1,0 +1,234 @@
+/* =========================================================
+   style.css — posterski slog
+   Ideja: cela stran je en "poster". Zgoraj majhno ime modela,
+   za avtom ogromen napis znamke, zgoraj desno besedilo, ki se
+   zamenja, ko se avto obrne (spredaj → bok → zadaj).
+   ========================================================= */
+
+/* ---------- 1. BARVNI ŽETONI ----------
+   Svetli način: topla siva-bež podlaga (kot papir posterja).
+   Temni način: skoraj črna "studijska" podlaga. */
+:root {
+  --bg: #cdc5b3;         /* podlaga posterja */
+  --fg: #1d1a15;         /* glavno besedilo */
+  --muted: #5e574b;      /* drobno besedilo */
+  --brand: #fbf9f3;      /* barva velikega napisa za avtom */
+  --line: #a99f8b;       /* tanke črte */
+  --spot: #e3ddd0;       /* svetla lisa "žarometa" za avtom */
+
+  --font-display: "Jost", "Futura", "Century Gothic", sans-serif;
+  --font-tall: "Antonio", "Arial Narrow", sans-serif;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0c0d;
+    --fg: #f1efea;
+    --muted: #8e8b85;
+    --brand: #f1efea;
+    --line: #2d2c2a;
+    --spot: #1f1f22;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0c0d;
+  --fg: #f1efea;
+  --muted: #8e8b85;
+  --brand: #f1efea;
+  --line: #2d2c2a;
+  --spot: #1f1f22;
+  color-scheme: dark;
+}
+
+/* ---------- 2. OSNOVA ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Atribut hidden mora vedno skriti element, tudi če ima display: flex */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1rem/1.55 var(--font-display);
+  transition: background-color 0.4s, color 0.4s;
+}
+
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+
+/* Drobne oznake z razmikom med črkami (kot "PORSCHE" na posterju) */
+.eyebrow {
+  font: 400 0.8rem/1 var(--font-display);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- 3. GLAVA (lebdi nad sceno) ---------- */
+.site-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font: 500 0.78rem/1 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pill:hover { border-color: var(--fg); }
+.pill svg { width: 1rem; height: 1rem; }
+
+/* Ikona sonca/lune glede na temo */
+.theme-toggle .sun { display: none; }
+.theme-toggle[data-mode="dark"] .sun { display: block; }
+.theme-toggle[data-mode="dark"] .moon { display: none; }
+
+/* ---------- 4. SCENA ----------
+   .scene je visoka 400vh, .stage je "sticky" in ostane na zaslonu. */
+.scene { position: relative; height: 400vh; }
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  display: grid;
+  /* vrstici: ime modela | prostor za avto */
+  grid-template-rows: auto 1fr;
+  background: radial-gradient(ellipse 55% 40% at 50% 58%, var(--spot), transparent 70%);
+}
+
+/* Vsi trije sloji (napis, canvas, besedilo) si delijo isti stolpec */
+.stage > * { grid-column: 1; }
+
+.model-line {
+  grid-row: 1;
+  z-index: 2;
+  justify-self: center;
+  padding-top: calc(4.5rem + env(safe-area-inset-top, 0px));
+}
+
+/* Ogromen napis znamke ZA avtom */
+.brand-word {
+  grid-row: 1 / -1;
+  align-self: center;
+  z-index: 0;
+  margin: 0;
+  text-align: center;
+  font: 700 clamp(5rem, 24vw, 22rem)/1 var(--font-tall);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  /* Prelivanje: zgoraj polna barva, spodaj izgine (kot McLaren poster).
+     background-clip: text = gradient je viden samo skozi črke. */
+  background: linear-gradient(to bottom, var(--brand) 35%, transparent 90%) no-repeat;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  user-select: none;
+  transform: translateY(-10%);
+}
+
+#car-canvas {
+  grid-row: 1 / -1;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---------- 5. BESEDILO ZGORAJ DESNO, KI SE MENJA ----------
+   Trije bloki ležijo en na drugem (ista celica mreže).
+   Viden je samo tisti z razredom .is-active (doda ga JS). */
+.captions {
+  position: absolute;
+  top: calc(5rem + env(safe-area-inset-top, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  z-index: 2;
+  display: grid;
+  width: min(22rem, calc(100% - 32px));
+}
+
+.caption {
+  grid-area: 1 / 1;          /* vsi v isti celici */
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 0.7rem;
+  text-align: right;
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 0.5s, transform 0.5s;
+  pointer-events: none;
+}
+.caption.is-active { opacity: 1; transform: none; pointer-events: auto; }
+
+.caption h2 {
+  margin: 0;
+  font: italic 800 clamp(1.6rem, 1.1rem + 1.8vw, 2.6rem)/1 var(--font-display);
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.caption p {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--muted);
+}
+
+/* Podatki v dveh stolpcih */
+.specs {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 0.8rem 2rem;
+  margin: 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+.specs div { display: grid; gap: 0.25rem; }
+.specs dt { font-size: 0.68rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.specs dd { margin: 0; font: 500 1.35rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.specs dd small { font-size: 0.65em; color: var(--muted); }
+
+/* Sporočilo med nalaganjem */
+.load-status {
+  grid-row: 2;
+  place-self: center;
+  z-index: 2;
+  margin: 0;
+  max-width: 30ch;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ---------- 6. PRAZEN PROSTOR SPODAJ ---------- */
+.after { height: 70vh; }
+
+/* ---------- 7. TELEFON ---------- */
+@media (max-width: 560px) {
+  .model-line { justify-self: start; padding-left: 16px; }
+  .caption p { font-size: 0.9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
